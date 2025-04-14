@@ -49,8 +49,6 @@ bool init()
 			}
 			else
 			{
-				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF); //color
-
 				int imgFlags = IMG_INIT_PNG;
 				if (!(IMG_Init(imgFlags) & imgFlags)) //this is weird but basically it says something like 'if this is not what i wanted, error
 				{
@@ -63,22 +61,10 @@ bool init()
 	return worked;
 }
 
-//closes window
-void close()
-{
 
-	SDL_DestroyWindow(gWindow);
-
-	gWindow = NULL;
-
-	SDL_Quit();
-	//just kill everything to make sure there are no memory leaks
-	//what would happen if we didn't? good question!
-	//good questions are hard to answer
-}
 
 //stupid gay thing we need for textures
-/*
+
 class LTexture
 {
 public:
@@ -90,7 +76,7 @@ public:
 
 	void free();
 
-	void render(int x, int y);
+	void render(int x, int y, float size);
 
 	int getWidth();
 
@@ -98,13 +84,120 @@ public:
 
 private:
 	SDL_Texture* mTexture;
+
+	int mWidth;
+	int mHeight;
 };
 
-LTexture undertaleMan
-*/
+LTexture::LTexture()
+{
+	//inits texture
+	mTexture = NULL;
+	mWidth = 0;
+	mHeight = 0;
+}
+
+LTexture::~LTexture()
+{
+	free();
+}
+
+bool LTexture::loadFromFile(std::string path)
+{
+	free();
+
+	SDL_Texture* newTexture = NULL;
+
+	SDL_Surface* loadedSurface = IMG_Load(path.c_str());
+	if (loadedSurface == NULL)
+	{
+		printf("unable to load image %s! SDL_Image error: %s\n", path.c_str(), IMG_GetError());
+	}
+	else
+	{
+		newTexture = SDL_CreateTextureFromSurface(gRenderer, loadedSurface);
+		if (newTexture == NULL)
+		{
+			printf("unable to load image %s! SDL_Image error: %s\n", path.c_str(), IMG_GetError());
+		}
+		else
+		{
+			mWidth = loadedSurface->w;
+			mHeight = loadedSurface->h;
+		}
+		SDL_FreeSurface(loadedSurface);
+	}
+	mTexture = newTexture;
+
+	return mTexture != NULL;
+}
+
+void LTexture::free()
+{
+	if (mTexture != NULL)
+	{
+		SDL_DestroyTexture(mTexture);
+		mTexture = NULL;
+		mWidth = 0;
+		mHeight = 0;
+	}
+}
+
+void LTexture::render(int x, int y, float size)
+{
+	int newSize[2] = { mWidth * size, mHeight * size };
+	SDL_Rect renderQuad = { x, y, newSize[0], newSize[1] };
+	SDL_RenderCopy(gRenderer, mTexture, NULL, &renderQuad);
+}
+
+int LTexture::getWidth()
+{
+	return mWidth;
+}
+
+int LTexture::getHeight()
+{
+	return mHeight;
+}
+
+LTexture undertaleMan;
+
+bool loadMedia()
+{
+	bool worked = true;
+
+	if (!undertaleMan.loadFromFile("assets/undertaleman.png"))
+	{
+		printf("failed to foo (whatever that means) texture file!\n");
+		worked = false;
+	}
+	return worked;
+}
+
+
+
+//closes window and frees stuff
+void close()
+{
+	undertaleMan.free();
+
+
+	SDL_DestroyWindow(gWindow);
+	SDL_DestroyRenderer(gRenderer);
+	gWindow = NULL;
+	gRenderer = NULL;
+
+	SDL_Quit();
+	IMG_Quit();
+	//just kill everything to make sure there are no memory leaks
+	//what would happen if we didn't? good question!
+	//good questions are hard to answer
+}
+
 
 int main(int argc, char* args[])
 {
+	printf("im cumming!!!!\n");
 	//start the game
 	if (!init()) // note that it probably returns false or something when it fails
 	{
@@ -112,28 +205,70 @@ int main(int argc, char* args[])
 	}
 	else
 	{
-		bool quitted = false;
-
-		SDL_Event e; //event thingy
-
-		//from this point on, its essentially the "game loop", for the lack of a better term
-		while (!quitted)
+		if (!loadMedia())
 		{
-			while (SDL_PollEvent(&e) != 0)
+			printf("Failed to load media!\n");
+		}
+		else
+		{
+			bool quitted = false;
+
+			SDL_Event e; //event thingy
+
+			int manPosX = 100;
+			int manPosY = 100;
+			bool manDirx = false;
+			bool manDiry = true;
+
+			//from this point on, its essentially the "game loop", for the lack of a better term
+			while (!quitted)
 			{
-				if (e.type == SDL_QUIT)
+				while (SDL_PollEvent(&e) != 0)
 				{
-					quitted = true;
+					if (e.type == SDL_QUIT)
+					{
+						quitted = true;
+					}
+					
+				}
+				if (manPosX + undertaleMan.getWidth() / 2 > SCREEN_WIDTH || manPosX == 0)
+				{
+					manDirx = !manDirx;
 				}
 
+				if (manPosY + undertaleMan.getHeight() / 2 > SCREEN_HEIGHT || manPosY == 0)
+				{
+					manDiry = !manDiry;
+				}
+
+				if (manDirx)
+				{
+					manPosX = manPosX + 2;
+				}
+				else
+				{
+					manPosX = manPosX - 2;
+				}
+
+				if (manDiry)
+				{
+					manPosY = manPosY + 2;
+				}
+				else
+				{
+					manPosY = manPosY - 2;
+				}
+
+				SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0);
 				SDL_RenderClear(gRenderer);
-
+				undertaleMan.render(manPosX, manPosY, 0.5);
+				SDL_RenderPresent(gRenderer);
+				SDL_Delay(16);
 			}
+
+			close();
+
+			return 0;
 		}
-
-		close();
-
-
-		return 0;
 	}
 }
