@@ -30,4 +30,33 @@
 *.exe
 *.out
 *.app
-/.vs
+
+# uhh, visual studio?
+.vs/
+*.user
+*.suo
+
+# Build results
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+*.log
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+*.nuspec
+
+# Others
+*.DS_Store
+*.class
+*.pyc
+*.pdb
+*.cache
+*.tmp
+
+# Rider
+.idea/
+
