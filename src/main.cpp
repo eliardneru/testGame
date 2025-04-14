@@ -78,6 +78,7 @@ void close()
 }
 
 //stupid gay thing we need for textures
+/*
 class LTexture
 {
 public:
@@ -100,6 +101,7 @@ private:
 };
 
 LTexture undertaleMan
+*/
 
 int main(int argc, char* args[])
 {
