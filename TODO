@@ -1,4 +1,5 @@
-- figure out fixed time step physics
+- refactor code so can create arbitary amount of players on the fly + player is a public thing
+- create solid object, the basis of all colision + debug collision test thingy
 - figure out key presses
 - figure out how to get the mouse's position
 - create camera

@@ -9,6 +9,9 @@ const int SCREEN_WIDTH = 1024;
 const int SCREEN_HEIGHT = 576;
 const float GRAVITY = 1960; //9.8 m/s * 2
 const float TERMINAL_VELOCITY = 10720; // 120 mph in centimeters * 2
+const float FIXED_UPDATE_TIME =  1.0f / 60.0f;
+
+
 
 //global vars, some say its bad but i think its ok
 SDL_Window* gWindow = NULL;
@@ -61,8 +64,6 @@ bool init()
 	}
 	return worked;
 }
-
-
 
 //stupid gay thing we need for textures
 #pragma region Texture Class
@@ -162,6 +163,7 @@ int LTexture::getHeight()
 }
 
 #pragma endregion
+
 LTexture angryPlayer;
 
 bool loadMedia()
@@ -197,13 +199,104 @@ void close()
 }
 
 
+float lerp(float a, float b, float t) {
+	return a + (b - a) * t;
+}
+
+float calcDeltaTime(Uint32& lastTick)
+{
+	Uint32 currentTick = SDL_GetTicks(); //same thing but in the game loop
+	float deltaTime = (currentTick - lastTick) / 1000.0f; //get dt
+	lastTick = currentTick; //update when the last tick was
+	return deltaTime;
+}
+
+bool calcFps(float deltaTime, int timeToUpdate, int& lastUpdate, float& fps)
+{
+	fps = 1.0f / deltaTime;
+
+	if (lastUpdate >= timeToUpdate) { lastUpdate = 0; return true; }
+	lastUpdate++;
+	return false;
+
+}
+
+void updatePhysics(float deltaTime, float &playerPosX, float &playerPosY, float &velPlayerX, float &velPlayerY, float &acelPlayerX, float &acelPlayerY)
+{
+	playerPosY += velPlayerY * deltaTime * 0.5f; 
+	playerPosX += velPlayerX * deltaTime * 0.5f;
+	velPlayerX *= 0.97f; //air resistence
+	acelPlayerX *= 0.97f; acelPlayerY *= 0.97f;
+	velPlayerY += GRAVITY * deltaTime;
+	velPlayerX += acelPlayerX * deltaTime;
+	velPlayerY += acelPlayerY * deltaTime;
+	if (velPlayerY >= TERMINAL_VELOCITY) { velPlayerY = TERMINAL_VELOCITY; }
+	playerPosY += velPlayerY * deltaTime * 0.5f;
+	playerPosX += velPlayerX * deltaTime * 0.5f;
+}
+
+void gameLoop()
+{
+	//deltaTime related variables
+	Uint32 lastTick = SDL_GetTicks();
+	float deltaTime = SDL_GetTicks();
+
+	bool quitted = false; //check if the game is running
+	SDL_Event e; //event thingy
+
+	//fps related variables
+	float fps = 0;
+	int framesSinceFrameCheck = 0;
+	float frameSincePhysicsCheck = 0.0f; float alpha = 0.0f;
+
+
+
+	float playerPosX = 100; float playerPosY = 0; //player position, duh
+	float prePlayerPosX = 100; float prePlayerPosY = 0;
+	float velPlayerX = 0;   float velPlayerY = 0; // velocity, how much should the player move essentially
+	float acelPlayerX = 0;  float acelPlayerY = 0; //acceleration, different from velocity cuz pysichs, gets added to velocity
+
+	while (!quitted) //while its running, do stuff
+	{
+		while (SDL_PollEvent(&e) != 0)
+		{
+			if (e.type == SDL_QUIT)
+			{
+				quitted = true;
+			}
+
+		}
+		SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer);
+
+		alpha = frameSincePhysicsCheck / FIXED_UPDATE_TIME;
+		frameSincePhysicsCheck += deltaTime;
+
+		while (frameSincePhysicsCheck >= FIXED_UPDATE_TIME)
+		{
+			updatePhysics(calcDeltaTime(lastTick), playerPosX, playerPosY, velPlayerX, velPlayerY, acelPlayerX, acelPlayerY);
+			frameSincePhysicsCheck -= FIXED_UPDATE_TIME;
+		}
+
+		
+
+		deltaTime = calcDeltaTime(lastTick);
+		if (calcFps(deltaTime, 60, framesSinceFrameCheck, fps)) { printf("fps: %.0f\n", fps); printf("x: %f y: %f\n", acelPlayerX, velPlayerY);}
+
+
+		angryPlayer.render(lerp(prePlayerPosX,playerPosX,alpha), lerp(prePlayerPosY, playerPosY, alpha), 1);
+		prePlayerPosX = playerPosX;
+		prePlayerPosY = playerPosY;
+		lastTick = SDL_GetTicks();
+		SDL_RenderPresent(gRenderer);
+	}
+}
+
+
 int main(int argc, char* args[])
 {
-	printf("im cumming!!!!\n");
-	Uint32 lastTick = SDL_GetTicks(); //check current tick, useful for timers and fps
-									  //ticks and frames are kinda of the same here
-									  
-	
+
+
+
 	if (!init()) //start the game
 	{
 		printf("failed to intialize! \n");
@@ -218,68 +311,10 @@ int main(int argc, char* args[])
 		{
 			SDL_RenderSetVSync(gRenderer, 1); // could check if vsync failed but i won't
 
-			bool quitted = false; //check if the game is running
-
-			SDL_Event e; //event thingy
-
-			Uint32 currentTick = SDL_GetTicks(); //get current tick
-			float deltaTime = (currentTick - lastTick) / 1000.0f; //calculate delta time by calculating time between ticks
-			lastTick = currentTick; //update when the last tick was
-
-			float fpsAvg = 0; //our fps
-			float tempAvgFps = 0; //gay thing to see fps
-			float secondCnt = 0; // how long since the last second
-
-			float playerPosX = 100; float playerPosY = 0; //player position, duh
-			bool changedX = false;  bool changedY = false; //depecrated, used in undertaleman
-			float velPlayerX = 0;   float velPlayerY = 0; // velocity, how much should the player move essentially
-			float acelPlayerX = 0;  float acelPlayerY = 0; //acceleration, different from velocity cuz pysichs
-
-			
-			while (!quitted) //while its running, do stuff
-			{
-				while (SDL_PollEvent(&e) != 0)
-				{
-					if (e.type == SDL_QUIT)
-					{
-						quitted = true;
-					}
-
-				}
-				//from this point on, its essentially the "game loop", for the lack of a better term
-
-				/*
-				changedX = (manPosX < 0) || (manPosX + angryPlayer.getWidth() > SCREEN_WIDTH);
-				changedY = (manPosY < 0) || (manPosY + angryPlayer.getHeight() > SCREEN_HEIGHT);
-				if (changedX) { velPlayerX *= -1; changedX = false; }
-				if (changedY) { velPlayerY *= -1; changedY = false; }
-				manPosX = manPosX + velPlayerX; manPosY = manPosY + velPlayerY;
-				*/
-
-				currentTick = SDL_GetTicks(); //same thing but in the game loop
-				deltaTime = (currentTick - lastTick) / 1000.0f; //get dt
-				lastTick = currentTick; //update when the last tick was
-
-				if (secondCnt <= 1) { secondCnt += deltaTime; tempAvgFps++; } //if a second hasn't passed, add a frame
-				else { fpsAvg = tempAvgFps; secondCnt = 0; tempAvgFps = 0;  } //else, this is our fps, reset
-
-				SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer);
-
-				playerPosY += velPlayerY * deltaTime * 0.5f;
-				velPlayerY += GRAVITY * deltaTime;
-				playerPosY += velPlayerY * deltaTime * 0.5f;
-				//i add the velocity before and afterwards to "avarage" how much i need
-				//im too lazy to explain what that means, just watch jonas tyroller's video on delta time
-				//
-				printf("%f\n", fpsAvg);
-				angryPlayer.render(playerPosX, playerPosY, 1);
-
-				SDL_RenderPresent(gRenderer);
-			}
-
-			close();
-
-			return 0;
 		}
+		gameLoop();
+		close();
+
+		return 0;
 	}
 }

@@ -1,4 +1,5 @@
 100 pixels = 2 meters (chosen arbitarially)
 meaning one centimeter = half a pixel OR 1 pixel = 2 centimeters
-gravity = ~9.8 m/s or 490 p/s
-which means i should add 390/FRAMERATE to the player every second
+gravity = ~9.8 m/s or 1960 p/s
+which means i should add 1960/DELTATIME to the player every second
+terminal velocity is 120mph, it means i should limit the player to 10720 in falling speed
