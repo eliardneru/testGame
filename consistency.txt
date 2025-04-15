@@ -1,0 +1,4 @@
+100 pixels = 2 meters (chosen arbitarially)
+meaning one centimeter = half a pixel OR 1 pixel = 2 centimeters
+gravity = ~9.8 m/s or 490 p/s
+which means i should add 390/FRAMERATE to the player every second

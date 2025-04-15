@@ -1,5 +1,4 @@
-- make the basic physichs
-- add vsync and general fps capping
+- figure out fixed time step physics
 - figure out key presses
 - figure out how to get the mouse's position
 - create camera

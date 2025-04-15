@@ -7,7 +7,8 @@
 //screen dimension constants, using this one because its divisible by 8 or something, plus its not that big
 const int SCREEN_WIDTH = 1024;
 const int SCREEN_HEIGHT = 576;
-
+const float GRAVITY = 1960; //9.8 m/s * 2
+const float TERMINAL_VELOCITY = 10720; // 120 mph in centimeters * 2
 
 //global vars, some say its bad but i think its ok
 SDL_Window* gWindow = NULL;
@@ -64,7 +65,7 @@ bool init()
 
 
 //stupid gay thing we need for textures
-
+#pragma region Texture Class
 class LTexture
 {
 public:
@@ -160,13 +161,14 @@ int LTexture::getHeight()
 	return mHeight;
 }
 
-LTexture undertaleMan;
+#pragma endregion
+LTexture angryPlayer;
 
 bool loadMedia()
 {
 	bool worked = true;
 
-	if (!undertaleMan.loadFromFile("assets/undertaleman.png"))
+	if (!angryPlayer.loadFromFile("assets/angrydude.png"))
 	{
 		printf("failed to foo (whatever that means) texture file!\n");
 		worked = false;
@@ -179,7 +181,7 @@ bool loadMedia()
 //closes window and frees stuff
 void close()
 {
-	undertaleMan.free();
+	angryPlayer.free();
 
 
 	SDL_DestroyWindow(gWindow);
@@ -198,28 +200,43 @@ void close()
 int main(int argc, char* args[])
 {
 	printf("im cumming!!!!\n");
-	//start the game
-	if (!init()) // note that it probably returns false or something when it fails
+	Uint32 lastTick = SDL_GetTicks(); //check current tick, useful for timers and fps
+									  //ticks and frames are kinda of the same here
+									  
+	
+	if (!init()) //start the game
 	{
 		printf("failed to intialize! \n");
 	}
 	else
 	{
-		if (!loadMedia())
+		if (!loadMedia()) //load stuff
 		{
 			printf("Failed to load media!\n");
 		}
 		else
 		{
-			bool quitted = false;
+			SDL_RenderSetVSync(gRenderer, 1); // could check if vsync failed but i won't
+
+			bool quitted = false; //check if the game is running
 
 			SDL_Event e; //event thingy
 
-			int manPosX = 100;	   int manPosY = 100;
-			bool changedX = false; bool changedY = false;
-			int speedX = 3;		   int speedY = 3;
-			//from this point on, its essentially the "game loop", for the lack of a better term
-			while (!quitted)
+			Uint32 currentTick = SDL_GetTicks(); //get current tick
+			float deltaTime = (currentTick - lastTick) / 1000.0f; //calculate delta time by calculating time between ticks
+			lastTick = currentTick; //update when the last tick was
+
+			float fpsAvg = 0; //our fps
+			float tempAvgFps = 0; //gay thing to see fps
+			float secondCnt = 0; // how long since the last second
+
+			float playerPosX = 100; float playerPosY = 0; //player position, duh
+			bool changedX = false;  bool changedY = false; //depecrated, used in undertaleman
+			float velPlayerX = 0;   float velPlayerY = 0; // velocity, how much should the player move essentially
+			float acelPlayerX = 0;  float acelPlayerY = 0; //acceleration, different from velocity cuz pysichs
+
+			
+			while (!quitted) //while its running, do stuff
 			{
 				while (SDL_PollEvent(&e) != 0)
 				{
@@ -229,18 +246,35 @@ int main(int argc, char* args[])
 					}
 
 				}
-				changedX = (manPosX < 0) || (manPosX + undertaleMan.getWidth() / 2 > SCREEN_WIDTH);
-				changedY = (manPosY < 0) || (manPosY + undertaleMan.getHeight() / 2 > SCREEN_HEIGHT);
-				if (changedX) { speedX *= -1; changedX = false; }
-				if (changedY) { speedY *= -1; changedY = false; }
-				manPosX = manPosX + speedX; manPosY = manPosY + speedY;
+				//from this point on, its essentially the "game loop", for the lack of a better term
+
+				/*
+				changedX = (manPosX < 0) || (manPosX + angryPlayer.getWidth() > SCREEN_WIDTH);
+				changedY = (manPosY < 0) || (manPosY + angryPlayer.getHeight() > SCREEN_HEIGHT);
+				if (changedX) { velPlayerX *= -1; changedX = false; }
+				if (changedY) { velPlayerY *= -1; changedY = false; }
+				manPosX = manPosX + velPlayerX; manPosY = manPosY + velPlayerY;
+				*/
+
+				currentTick = SDL_GetTicks(); //same thing but in the game loop
+				deltaTime = (currentTick - lastTick) / 1000.0f; //get dt
+				lastTick = currentTick; //update when the last tick was
+
+				if (secondCnt <= 1) { secondCnt += deltaTime; tempAvgFps++; } //if a second hasn't passed, add a frame
+				else { fpsAvg = tempAvgFps; secondCnt = 0; tempAvgFps = 0;  } //else, this is our fps, reset
 
 				SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer);
 
-				undertaleMan.render(manPosX, manPosY, 0.5);
+				playerPosY += velPlayerY * deltaTime * 0.5f;
+				velPlayerY += GRAVITY * deltaTime;
+				playerPosY += velPlayerY * deltaTime * 0.5f;
+				//i add the velocity before and afterwards to "avarage" how much i need
+				//im too lazy to explain what that means, just watch jonas tyroller's video on delta time
+				//
+				printf("%f\n", fpsAvg);
+				angryPlayer.render(playerPosX, playerPosY, 1);
 
 				SDL_RenderPresent(gRenderer);
-				SDL_Delay(16);
 			}
 
 			close();
