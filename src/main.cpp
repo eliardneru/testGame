@@ -215,11 +215,9 @@ int main(int argc, char* args[])
 
 			SDL_Event e; //event thingy
 
-			int manPosX = 100;
-			int manPosY = 100;
-			bool manDirx = false;
-			bool manDiry = true;
-
+			int manPosX = 100;	   int manPosY = 100;
+			bool changedX = false; bool changedY = false;
+			int speedX = 3;		   int speedY = 3;
 			//from this point on, its essentially the "game loop", for the lack of a better term
 			while (!quitted)
 			{
@@ -229,39 +227,18 @@ int main(int argc, char* args[])
 					{
 						quitted = true;
 					}
-					
-				}
-				if (manPosX + undertaleMan.getWidth() / 2 > SCREEN_WIDTH || manPosX == 0)
-				{
-					manDirx = !manDirx;
-				}
 
-				if (manPosY + undertaleMan.getHeight() / 2 > SCREEN_HEIGHT || manPosY == 0)
-				{
-					manDiry = !manDiry;
 				}
+				changedX = (manPosX < 0) || (manPosX + undertaleMan.getWidth() / 2 > SCREEN_WIDTH);
+				changedY = (manPosY < 0) || (manPosY + undertaleMan.getHeight() / 2 > SCREEN_HEIGHT);
+				if (changedX) { speedX *= -1; changedX = false; }
+				if (changedY) { speedY *= -1; changedY = false; }
+				manPosX = manPosX + speedX; manPosY = manPosY + speedY;
 
-				if (manDirx)
-				{
-					manPosX = manPosX + 2;
-				}
-				else
-				{
-					manPosX = manPosX - 2;
-				}
+				SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer);
 
-				if (manDiry)
-				{
-					manPosY = manPosY + 2;
-				}
-				else
-				{
-					manPosY = manPosY - 2;
-				}
-
-				SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0);
-				SDL_RenderClear(gRenderer);
 				undertaleMan.render(manPosX, manPosY, 0.5);
+
 				SDL_RenderPresent(gRenderer);
 				SDL_Delay(16);
 			}

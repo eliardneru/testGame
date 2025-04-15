@@ -1,0 +1,10 @@
+- make the basic physichs
+- add vsync and general fps capping
+- figure out key presses
+- figure out how to get the mouse's position
+- create camera
+- figure out how to create levels somehow
+- save level to file
+- add shooting
+- reconfigure CMake, make so its the users burden to download SDL2 and SDL2_Image with find_package()
+- figure out how to make good binaries
