@@ -1,10 +1,17 @@
 - refactor code so can create arbitary amount of players on the fly + player is a public thing
 - create solid object, the basis of all colision + debug collision test thingy
 - figure out key presses
+- add basic movement
 - figure out how to get the mouse's position
+- add gun to characters hand
 - create camera
-- figure out how to create levels somehow
+- figure out how to create levels somehow by creating some primimitive level editor?
 - save level to file
 - add shooting
+- add sound
 - reconfigure CMake, make so its the users burden to download SDL2 and SDL2_Image with find_package()
 - figure out how to make good binaries
+- create acceleration of running and deaceleration
+- make basic programmer art, animations?
+- figure out sprite sheets with json? i don't want to get the position of each sprite manually
+- figure out animations, probably will be killed with figure out sprite sheets

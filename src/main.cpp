@@ -4,20 +4,28 @@
 #include <SDL_Image.h>
 #include <SDL.h>
 
-//screen dimension constants, using this one because its divisible by 8 or something, plus its not that big
-const int SCREEN_WIDTH = 1024;
+//global constants 
+const int SCREEN_WIDTH = 1024; //screen dimension constants, using this one because its divisible by 8 or something, plus its not that big
 const int SCREEN_HEIGHT = 576;
-const float GRAVITY = 1960; //9.8 m/s * 2
+const float GRAVITY = 980; //FIXME: 9.8 m/s * 2, or not, from what it seems, i fucked up something but i want too lazy to find out what right now as i just refactored this whole thing
 const float TERMINAL_VELOCITY = 10720; // 120 mph in centimeters * 2
 const float FIXED_UPDATE_TIME =  1.0f / 60.0f;
 
-
-
-//global vars, some say its bad but i think its ok
+//global sdl stuff
 SDL_Window* gWindow = NULL;
-
 SDL_Renderer* gRenderer = NULL;
 
+
+struct gameVars //every game global thing, including physics, fps, etc
+{
+	Uint32 lastTick; //used for calculating deltaTime
+	float deltaTime; //time since last frame
+
+	float fps; //frames per second
+	int framesSinceFrameCheck; //used in calculating fps with a delay so you don't do it every frame
+	float frameSincePhysicsCheck; //used for calculating physics outisde of framerate
+	float alpha;  //used in lerp, may get deprecated if larp does nothing
+}; gameVars game;
 //inits window
 bool init()
 {
@@ -166,6 +174,39 @@ int LTexture::getHeight()
 
 LTexture angryPlayer;
 
+class player {
+public:
+	float x, y; //final position of player, used to render, will be lerped
+	float velPlayerX = 0;   float velPlayerY = 0; // velocity, how much should the player move essentially
+	float acelPlayerX = 0;  float acelPlayerY = 0; //acceleration, different from velocity cuz pysichs, gets added to velocity
+
+	float prePlayerPosX; float prePlayerPosY; // used in interpolation
+
+	player(float startX, float startY)
+	: x(startX), y(startY){}
+	void update(float deltaTime);
+	void render(float size);
+};
+
+void player::update(float deltaTime)
+{
+	y += velPlayerY * deltaTime * 0.5f;
+	x += velPlayerX * deltaTime * 0.5f;
+	velPlayerX *= 0.97f; //air resistence
+	acelPlayerX *= 0.97f; acelPlayerY *= 0.97f;
+	velPlayerY += GRAVITY * deltaTime;
+	velPlayerX += acelPlayerX * deltaTime;
+	velPlayerY += acelPlayerY * deltaTime;
+	if (velPlayerY >= TERMINAL_VELOCITY) { velPlayerY = TERMINAL_VELOCITY; }
+	y += velPlayerY * deltaTime * 0.5f;
+	x += velPlayerX * deltaTime * 0.5f;
+}
+
+void player::render(float size)
+{
+	angryPlayer.render(x, y, size);
+}
+
 bool loadMedia()
 {
 	bool worked = true;
@@ -203,20 +244,21 @@ float lerp(float a, float b, float t) {
 	return a + (b - a) * t;
 }
 
-float calcDeltaTime(Uint32& lastTick)
+Uint32 calcDeltaTime(gameVars &game)
 {
 	Uint32 currentTick = SDL_GetTicks(); //same thing but in the game loop
-	float deltaTime = (currentTick - lastTick) / 1000.0f; //get dt
-	lastTick = currentTick; //update when the last tick was
-	return deltaTime;
+    game.deltaTime = (currentTick - game.lastTick) / 1000.0f; //get dt
+	game.lastTick = currentTick; //update when the last tick was
+	return game.deltaTime;
+
 }
 
-bool calcFps(float deltaTime, int timeToUpdate, int& lastUpdate, float& fps)
+bool calcFps(gameVars& game, int timeToUpdate)
 {
-	fps = 1.0f / deltaTime;
+	game.fps = 1.0f / game.deltaTime;
 
-	if (lastUpdate >= timeToUpdate) { lastUpdate = 0; return true; }
-	lastUpdate++;
+	if (game.framesSinceFrameCheck >= timeToUpdate) { game.framesSinceFrameCheck = 0; return true; }
+	game.framesSinceFrameCheck++;
 	return false;
 
 }
@@ -237,24 +279,11 @@ void updatePhysics(float deltaTime, float &playerPosX, float &playerPosY, float 
 
 void gameLoop()
 {
-	//deltaTime related variables
-	Uint32 lastTick = SDL_GetTicks();
-	float deltaTime = SDL_GetTicks();
-
 	bool quitted = false; //check if the game is running
 	SDL_Event e; //event thingy
+	player angryPlayer(200, -200);
+	int secondsPassed = 0;
 
-	//fps related variables
-	float fps = 0;
-	int framesSinceFrameCheck = 0;
-	float frameSincePhysicsCheck = 0.0f; float alpha = 0.0f;
-
-
-
-	float playerPosX = 100; float playerPosY = 0; //player position, duh
-	float prePlayerPosX = 100; float prePlayerPosY = 0;
-	float velPlayerX = 0;   float velPlayerY = 0; // velocity, how much should the player move essentially
-	float acelPlayerX = 0;  float acelPlayerY = 0; //acceleration, different from velocity cuz pysichs, gets added to velocity
 
 	while (!quitted) //while its running, do stuff
 	{
@@ -268,25 +297,26 @@ void gameLoop()
 		}
 		SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer);
 
-		alpha = frameSincePhysicsCheck / FIXED_UPDATE_TIME;
-		frameSincePhysicsCheck += deltaTime;
+		calcDeltaTime(game);
 
-		while (frameSincePhysicsCheck >= FIXED_UPDATE_TIME)
+		game.alpha = game.frameSincePhysicsCheck / FIXED_UPDATE_TIME;
+		game.frameSincePhysicsCheck += game.deltaTime;
+
+		while (game.frameSincePhysicsCheck >= FIXED_UPDATE_TIME) //calc physics in fixed time step
 		{
-			updatePhysics(calcDeltaTime(lastTick), playerPosX, playerPosY, velPlayerX, velPlayerY, acelPlayerX, acelPlayerY);
-			frameSincePhysicsCheck -= FIXED_UPDATE_TIME;
+			angryPlayer.update(FIXED_UPDATE_TIME);
+			game.frameSincePhysicsCheck -= FIXED_UPDATE_TIME;
 		}
 
 		
 
-		deltaTime = calcDeltaTime(lastTick);
-		if (calcFps(deltaTime, 60, framesSinceFrameCheck, fps)) { printf("fps: %.0f\n", fps); printf("x: %f y: %f\n", acelPlayerX, velPlayerY);}
+		
+		if (calcFps(game, 60)) { printf("fps: %.0f\n", game.fps); printf("dt: %.0f\n", game.deltaTime); printf("y: %.0f\n", angryPlayer.y); printf("vel: %.0f\n", angryPlayer.velPlayerY); secondsPassed++; printf("seconds: %d\n", secondsPassed); };
 
 
-		angryPlayer.render(lerp(prePlayerPosX,playerPosX,alpha), lerp(prePlayerPosY, playerPosY, alpha), 1);
-		prePlayerPosX = playerPosX;
-		prePlayerPosY = playerPosY;
-		lastTick = SDL_GetTicks();
+		
+		game.lastTick = SDL_GetTicks();
+		angryPlayer.render(1);
 		SDL_RenderPresent(gRenderer);
 	}
 }
@@ -294,8 +324,7 @@ void gameLoop()
 
 int main(int argc, char* args[])
 {
-
-
+	
 
 	if (!init()) //start the game
 	{
