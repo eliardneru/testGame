@@ -172,7 +172,7 @@ int LTexture::getHeight()
 
 #pragma endregion
 
-LTexture angryPlayer;
+LTexture angryPlayer; //i wonder if texture and player should be one thing
 
 class player {
 public:
@@ -188,7 +188,7 @@ public:
 	void render(float size);
 };
 
-void player::update(float deltaTime)
+void player::update(float deltaTime) // updates player physics, should be called as many times as needed per second, use timestep if you want it consistent
 {
 	y += velPlayerY * deltaTime * 0.5f;
 	x += velPlayerX * deltaTime * 0.5f;
@@ -202,12 +202,12 @@ void player::update(float deltaTime)
 	x += velPlayerX * deltaTime * 0.5f;
 }
 
-void player::render(float size)
+void player::render(float size) //FIXME: a function that just calls another function is kinda of retarded, really retarded actually but what can we do
 {
 	angryPlayer.render(x, y, size);
 }
 
-bool loadMedia()
+bool loadMedia() //FIXME?: i think this is ok if i load in sprite sheets, otherwise it will suck ass 
 {
 	bool worked = true;
 
@@ -222,9 +222,9 @@ bool loadMedia()
 
 
 //closes window and frees stuff
-void close()
+void close() //closes the game
 {
-	angryPlayer.free();
+	angryPlayer.free(); //another bad thing, should just free all possible, maybe add some sort of function that just frees as much stuff as possible?
 
 
 	SDL_DestroyWindow(gWindow);
@@ -240,11 +240,11 @@ void close()
 }
 
 
-float lerp(float a, float b, float t) {
+float lerp(float a, float b, float t) { //deprecated i think, will see if i will remove it when colision and controls are added
 	return a + (b - a) * t;
 }
 
-Uint32 calcDeltaTime(gameVars &game)
+Uint32 calcDeltaTime(gameVars &game) //calculates deltaTime
 {
 	Uint32 currentTick = SDL_GetTicks(); //same thing but in the game loop
     game.deltaTime = (currentTick - game.lastTick) / 1000.0f; //get dt
@@ -253,7 +253,7 @@ Uint32 calcDeltaTime(gameVars &game)
 
 }
 
-bool calcFps(gameVars& game, int timeToUpdate)
+bool calcFps(gameVars& game, int timeToUpdate) //calculates fps using deltaTime, might need to be rounded as its too precise
 {
 	game.fps = 1.0f / game.deltaTime;
 
@@ -263,25 +263,11 @@ bool calcFps(gameVars& game, int timeToUpdate)
 
 }
 
-void updatePhysics(float deltaTime, float &playerPosX, float &playerPosY, float &velPlayerX, float &velPlayerY, float &acelPlayerX, float &acelPlayerY)
-{
-	playerPosY += velPlayerY * deltaTime * 0.5f; 
-	playerPosX += velPlayerX * deltaTime * 0.5f;
-	velPlayerX *= 0.97f; //air resistence
-	acelPlayerX *= 0.97f; acelPlayerY *= 0.97f;
-	velPlayerY += GRAVITY * deltaTime;
-	velPlayerX += acelPlayerX * deltaTime;
-	velPlayerY += acelPlayerY * deltaTime;
-	if (velPlayerY >= TERMINAL_VELOCITY) { velPlayerY = TERMINAL_VELOCITY; }
-	playerPosY += velPlayerY * deltaTime * 0.5f;
-	playerPosX += velPlayerX * deltaTime * 0.5f;
-}
-
 void gameLoop()
 {
 	bool quitted = false; //check if the game is running
 	SDL_Event e; //event thingy
-	player angryPlayer(200, -200);
+	player angryPlayer(200, -200); //this essentially spawns the player
 	int secondsPassed = 0;
 
 
@@ -295,29 +281,25 @@ void gameLoop()
 			}
 
 		}
-		SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer);
+		SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer); // clear screen so we can start again
+		calcDeltaTime(game); // calculate deltaTime duh,
 
-		calcDeltaTime(game);
-
-		game.alpha = game.frameSincePhysicsCheck / FIXED_UPDATE_TIME;
-		game.frameSincePhysicsCheck += game.deltaTime;
+		game.alpha = game.frameSincePhysicsCheck / FIXED_UPDATE_TIME; //calculate alpha, used in lerp, might get removed
+		game.frameSincePhysicsCheck += game.deltaTime; //add to physics so we can known when to update physics stuff
 
 		while (game.frameSincePhysicsCheck >= FIXED_UPDATE_TIME) //calc physics in fixed time step
 		{
-			angryPlayer.update(FIXED_UPDATE_TIME);
-			game.frameSincePhysicsCheck -= FIXED_UPDATE_TIME;
+			angryPlayer.update(FIXED_UPDATE_TIME); //bad thing, should put all players into a vector and then spawn then on demand
+			game.frameSincePhysicsCheck -= FIXED_UPDATE_TIME; //reset
 		}
 
-		
-
-		
 		if (calcFps(game, 60)) { printf("fps: %.0f\n", game.fps); printf("dt: %.0f\n", game.deltaTime); printf("y: %.0f\n", angryPlayer.y); printf("vel: %.0f\n", angryPlayer.velPlayerY); secondsPassed++; printf("seconds: %d\n", secondsPassed); };
 
 
 		
-		game.lastTick = SDL_GetTicks();
-		angryPlayer.render(1);
-		SDL_RenderPresent(gRenderer);
+		game.lastTick = SDL_GetTicks(); //
+		angryPlayer.render(1); //renders player with size 1
+		SDL_RenderPresent(gRenderer); //do all of that stuff
 	}
 }
 
