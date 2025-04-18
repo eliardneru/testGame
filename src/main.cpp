@@ -10,7 +10,7 @@
 //global constants 
 const int SCREEN_WIDTH = 1024; //screen dimension constants, using this one because its divisible by 8 or something, plus its not that big
 const int SCREEN_HEIGHT = 576;
-const float GRAVITY = 980; //FIXME: 9.8 m/s * 2, or not, from what it seems, i fucked up something but i want too lazy to find out what right now as i just refactored this whole thing
+const float GRAVITY = 480; //FIXME: 9.8 m/s * 2, or not, from what it seems, i fucked up something but i want too lazy to find out what right now as i just refactored this whole thing
 const float TERMINAL_VELOCITY = 10720; // 120 mph in centimeters * 2
 const float FIXED_UPDATE_TIME = 1.0f / 60.0f;
 
@@ -40,7 +40,6 @@ bool init()
 	}
 	else
 	{
-
 		if (!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")) //something something make things look less worse
 		{
 			printf("Warning: Linear texture filtering is not enabled");
@@ -222,6 +221,7 @@ public:
 	float x, y; //final position of player, used to render, will be lerped
 	float velPlayerX = 0;   float velPlayerY = 0; // velocity, how much should the player move essentially
 	float acelPlayerX = 0;  float acelPlayerY = 0; //acceleration, different from velocity cuz pysichs, gets added to velocity
+	bool hasJumped = true;
 
 	float prePlayerPosX; float prePlayerPosY; // used in interpolation, probably deprecated
 
@@ -319,15 +319,13 @@ void updatePhysicsGame(player& p, collider& c, LTexture& pp) //in theory we coul
 		float aTop = p.y;
 		float bTop = c.y;
 
-
 		//calculate overlap
 		float overlapX = std::min(aRight, bRight) - std::max(aLeft, bLeft);
 		float overlapY = std::min(aBottom,bBottom) - std::max(aTop,bTop);
 
 		if (fabs(overlapX) < fabs(overlapY)) { p.x -= overlapX; p.velPlayerX = 0; }
-		else { p.y -= overlapY; p.velPlayerY = 0; }
-		
-		printf("the busta\n");
+		else { p.y -= overlapY; p.velPlayerY *= 0.1f; p.hasJumped = false; }
+
 
 	}
 
@@ -340,8 +338,11 @@ void gameLoop()
 	SDL_SetRenderDrawBlendMode(gRenderer, SDL_BLENDMODE_BLEND); //makes so transparency works
 	player angryPlayer(400, 100); //this essentially spawns the player, i wonder if texture and player should be one thing
 	collider colTest(SCREEN_HEIGHT / 2, SCREEN_WIDTH / 2, 400, 100);
+	collider colTest2(600, 200, 50, 800);
 	int secondsPassed = 0;
-
+	bool wantJump = false;
+	bool wantsWalkR = false;
+	bool wantsWalkL = false;
 	game.lastTick = SDL_GetTicks();
 
 	while (!quitted) //while its running, do stuff
@@ -352,11 +353,39 @@ void gameLoop()
 			{
 				quitted = true;
 			}
+			switch (e.key.keysym.sym)
+			{
+			case SDLK_d:
+				wantsWalkR = true;
+				break;
+			case SDLK_a:
+				wantsWalkL = true;
+				break;
+			case SDLK_w:
+				wantJump = true;
+				break;
 
+			}
+			
+			if (e.type == SDL_KEYUP)
+			{
+				switch (e.key.keysym.sym)
+				{
+				case SDLK_d:
+					wantsWalkR = false;
+					break;
+				case SDLK_a:
+					wantsWalkL = false;
+					break;
+				case SDLK_w:
+					wantJump = false;
+					break;
+
+				}
+			}
 		}
 
 		SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer); // clear screen so we can start again
-
 		calcDeltaTime(game); // calculate deltaTime duh, 
 
 #ifdef _DEBUG
@@ -368,16 +397,30 @@ void gameLoop()
 
 		while (game.frameSincePhysicsCheck >= FIXED_UPDATE_TIME) //calc physics in fixed time step
 		{
-
 			angryPlayer.update(FIXED_UPDATE_TIME); //bad thing, should put all players into a vector and then spawn then on demand
 			game.frameSincePhysicsCheck -= FIXED_UPDATE_TIME; //reset
-
 		}
+
+		SDL_PumpEvents();
+		if (angryPlayer.hasJumped == false && wantJump == true)
+		{
+			printf("\njump: %d\n", angryPlayer.hasJumped);
+			angryPlayer.velPlayerY -= 200 + GRAVITY * game.deltaTime;
+			printf("the busta\n");
+			angryPlayer.hasJumped = true;
+			printf("\njump: %d\n", angryPlayer.hasJumped);
+		}
+
+		if (wantsWalkR) { angryPlayer.velPlayerX += 25; }
+		if (wantsWalkL) { angryPlayer.velPlayerX -= 25; }
+
 
 		if (calcFps(game, 60)) { printf("\nfps: %.0f\n", game.fps); printf("dt: %.0f\n", game.deltaTime); printf("y: %.0f\n", 1.0f); printf("vel: %.0f\n", angryPlayer.velPlayerY); secondsPassed++; printf("seconds: %d\n", secondsPassed); };
 
-		colTest.draw(colTest.x, colTest.y, colTest.w, colTest.h, 0);
+		colTest.draw(colTest.x, colTest.y, colTest.w, colTest.h, 1);
+		colTest2.draw(colTest2.x, colTest2.y, colTest2.w, colTest2.h, 1);
 		updatePhysicsGame(angryPlayer, colTest, angryPlayerTex);
+		updatePhysicsGame(angryPlayer, colTest2, angryPlayerTex);
 		angryPlayer.render(1); //renders player with size 1
 
 		SDL_RenderPresent(gRenderer); //do all of that stuff
