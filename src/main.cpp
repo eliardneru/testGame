@@ -3,13 +3,16 @@
 #include <string>
 #include <SDL_Image.h>
 #include <SDL.h>
+#include <iostream>
+#include <cmath>
+
 
 //global constants 
 const int SCREEN_WIDTH = 1024; //screen dimension constants, using this one because its divisible by 8 or something, plus its not that big
 const int SCREEN_HEIGHT = 576;
 const float GRAVITY = 980; //FIXME: 9.8 m/s * 2, or not, from what it seems, i fucked up something but i want too lazy to find out what right now as i just refactored this whole thing
 const float TERMINAL_VELOCITY = 10720; // 120 mph in centimeters * 2
-const float FIXED_UPDATE_TIME =  1.0f / 60.0f;
+const float FIXED_UPDATE_TIME = 1.0f / 60.0f;
 
 //global sdl stuff
 SDL_Window* gWindow = NULL;
@@ -133,7 +136,6 @@ bool LTexture::loadFromFile(std::string path)
 		}
 		else
 		{
-			printf("\n\n ERROR: %s", IMG_GetError(), "\n\n");
 			mWidth = loadedSurface->w;
 			mHeight = loadedSurface->h;
 		}
@@ -169,13 +171,12 @@ void LTexture::render(float x, float y, float size)
 	int newSize[2] = { mWidth * size, mHeight * size };
 	SDL_Rect renderQuad = { x, y, newSize[0], newSize[1] };
 
-	if(SDL_RenderCopy(gRenderer, mTexture, NULL, &renderQuad) < 0)
+	if (SDL_RenderCopy(gRenderer, mTexture, NULL, &renderQuad) < 0)
 	{
-
-		//printf("\n\nsomething went to shit\n\n");
-		//printf(SDL_GetError());
+		printf("\n\nsomething went to shit\n\n");
+		printf(SDL_GetError());
 	}
-	
+
 }
 
 int LTexture::getWidth()
@@ -205,8 +206,10 @@ public:
 void collider::draw(float& x, float& y, float& w, float& h, int isVisible)
 {
 	int v;
-	SDL_Rect col = { x, y, w, h}; //FIXME: we should probably only set this once, not every frame
-	if(isVisible>=1){v=255;} else if (isVisible<0) {v=0;} else {v = 100;} //make so the collider object is visible, partially visible or insivible if asked, ugly hack
+	SDL_Rect col = { x, y, w, h }; //FIXME: we should probably only set this once, not every frame
+	if (isVisible >= 1) { v = 255; }
+	else if (isVisible < 0) { v = 0; }
+	else { v = 100; } //make so the collider object is visible, partially visible or insivible if asked, ugly hack
 	SDL_SetRenderDrawColor(gRenderer, 255, 255, 255, v);
 	SDL_RenderFillRect(gRenderer, &col);
 }
@@ -223,7 +226,7 @@ public:
 	float prePlayerPosX; float prePlayerPosY; // used in interpolation, probably deprecated
 
 	player(float startX, float startY)
-	: x(startX), y(startY){}
+		: x(startX), y(startY) {}
 	void update(float deltaTime);
 	void render(float size);
 };
@@ -234,7 +237,7 @@ void player::update(float deltaTime) // updates player physics, should be called
 	x += velPlayerX * deltaTime * 0.5f;
 	velPlayerX *= 0.97f; //air resistence
 	acelPlayerX *= 0.97f; acelPlayerY *= 0.97f; //air resistence but acceleration, this is not accurate but it does the job
-	velPlayerY += GRAVITY * deltaTime; 
+	velPlayerY += GRAVITY * deltaTime;
 	velPlayerX += acelPlayerX * deltaTime;
 	velPlayerY += acelPlayerY * deltaTime;
 	if (velPlayerY >= TERMINAL_VELOCITY) { velPlayerY = TERMINAL_VELOCITY; }
@@ -282,10 +285,10 @@ float lerp(float a, float b, float t) { //deprecated i think, will see if i will
 	return a + (b - a) * t;
 }
 
-Uint32 calcDeltaTime(gameVars &game) //calculates deltaTime
+Uint32 calcDeltaTime(gameVars& game) //calculates deltaTime
 {
 	Uint32 currentTick = SDL_GetTicks(); //same thing but in the game loop
-    game.deltaTime = (currentTick - game.lastTick) / 1000.0f; //get dt
+	game.deltaTime = (currentTick - game.lastTick) / 1000.0f; //get dt
 	game.lastTick = currentTick; //update when the last tick was
 	return game.deltaTime;
 
@@ -302,13 +305,32 @@ bool calcFps(gameVars& game, int timeToUpdate) //calculates fps using deltaTime,
 
 #pragma endregion
 
-void updatePhysicsGame(const player& p, const collider& c, LTexture& pp) //in theory we could just use this function with a loop in all objects that need coliding
+void updatePhysicsGame(player& p, collider& c, LTexture& pp) //in theory we could just use this function with a loop in all objects that need coliding
 {
 	//we will be using AABB, its not elegant, please do not put too many colliders, i do not like O(n^2)
 	if (p.x < c.x + c.w && p.x + pp.getWidth() > c.x && p.y < c.y + c.h && p.y + pp.getHeight() > c.y)
 	{
+		float aRight = p.x + pp.getWidth();
+		float bRight = c.x + c.w;
+		float aLeft = p.x;
+		float bLeft = c.x;
+		float aBottom = p.y + pp.getHeight();
+		float bBottom = c.y + c.h;
+		float aTop = p.y;
+		float bTop = c.y;
+
+
+		//calculate overlap
+		float overlapX = std::min(aRight, bRight) - std::max(aLeft, bLeft);
+		float overlapY = std::min(aBottom,bBottom) - std::max(aTop,bTop);
+
+		if (fabs(overlapX) < fabs(overlapY)) { p.x -= overlapX; p.velPlayerX = 0; }
+		else { p.y -= overlapY; p.velPlayerY = 0; }
+		
 		printf("the busta\n");
+
 	}
+
 }
 
 void gameLoop()
@@ -316,7 +338,7 @@ void gameLoop()
 	bool quitted = false; //check if the game is running
 	SDL_Event e; //event thingy
 	SDL_SetRenderDrawBlendMode(gRenderer, SDL_BLENDMODE_BLEND); //makes so transparency works
-	player angryPlayer(400, 450); //this essentially spawns the player, i wonder if texture and player should be one thing
+	player angryPlayer(400, 100); //this essentially spawns the player, i wonder if texture and player should be one thing
 	collider colTest(SCREEN_HEIGHT / 2, SCREEN_WIDTH / 2, 400, 100);
 	int secondsPassed = 0;
 
@@ -333,7 +355,6 @@ void gameLoop()
 
 		}
 
-	
 		SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer); // clear screen so we can start again
 
 		calcDeltaTime(game); // calculate deltaTime duh, 
@@ -360,14 +381,14 @@ void gameLoop()
 		angryPlayer.render(1); //renders player with size 1
 
 		SDL_RenderPresent(gRenderer); //do all of that stuff
-		
+
 	}
 }
 
 
 int main(int argc, char* args[])
 {
-	
+
 
 	if (!init()) //start the game
 	{
