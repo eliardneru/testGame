@@ -1,6 +1,11 @@
+- fix bug that makes the player fly off if deltatime is too high, it just fucks off randomly, something to do with not being on fixed time?
+- refactor the code... gain!!! DONT FORGET THE VECTOR THINGY
+- hide mouse, make make so the mouse is stuck inside the window
 - figure out vector thingy
 - HOLY SHIT I FORGOT ABOUT THE VECTOR THINGY
+- configure imGui for debug and fun stuff
 - create some sort of free function that frees all unused data, maybe just run vector in all players are enemies?
+- add friction so the character does not slide
 - figure out how to get the mouse's position
 - add gun to characters hand
 - create camera
