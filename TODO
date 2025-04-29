@@ -1,8 +1,17 @@
-- fix bug that makes the player fly off if deltatime is too high, it just fucks off randomly, something to do with not being on fixed time?
-- refactor the code... gain!!! DONT FORGET THE VECTOR THINGY
-- hide mouse, make make so the mouse is stuck inside the window
+### this thing is the project structure, im figuring out how to refactor this thing
+
+game loop VVV
+create and handle player and data -> Texture
+handle player input -> handle player physics < universal physics? need gdd to figure it out
+create solid objects ->? Texture
+
+- refactor the code... again!!! DONT FORGET THE VECTOR THINGY
 - figure out vector thingy
+
+
+
 - HOLY SHIT I FORGOT ABOUT THE VECTOR THINGY
+- create elevators and make sure the physics is good
 - configure imGui for debug and fun stuff
 - create some sort of free function that frees all unused data, maybe just run vector in all players are enemies?
 - add friction so the character does not slide

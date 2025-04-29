@@ -6,7 +6,9 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
-
+#include <thread>
+#include <atomic>
+std::atomic<bool> running(true);
 
 //global constants 
 const int SCREEN_WIDTH = 1024; //screen dimension constants, using this one because its divisible by 8 or something, plus its not that big
@@ -215,7 +217,6 @@ int LTexture::getHeight()
 LTexture angryPlayerTex; //it would be good to load it before anything else so its public, honestly this is so fucking retarded its not funny
 LTexture shotgunTex;
 
-
 #pragma region crosshair
 
 class crosshairA
@@ -255,84 +256,9 @@ void collider::draw(float& x, float& y, float& w, float& h, int isVisible)
 	if (isVisible >= 1) { v = 255; }
 	else if (isVisible < 0) { v = 0; }
 	else { v = 100; } //make so the collider object is visible, partially visible or insivible if asked, ugly hack
-	SDL_SetRenderDrawColor(gRenderer, 255, 255, 255, v);
+	SDL_SetRenderDrawColor(gRenderer, 211, 211, 211, v);
 	SDL_RenderFillRect(gRenderer, &col);
 }
-#pragma endregion
-
-#pragma region player stuff
-class player {
-public:
-	float x, y; //final position of player, used to render, will be lerped
-	float velPlayerX = 0;   float velPlayerY = 0; // velocity, how much should the player move essentially
-	float acelPlayerX = 0;  float acelPlayerY = 0; //acceleration, different from velocity cuz pysichs, gets added to velocity
-	bool hasJumped = true;
-
-	float prePlayerPosX; float prePlayerPosY; // used in interpolation, probably deprecated
-
-	player(float startX, float startY, LTexture &playerTex)
-		: x(startX), y(startY), playerTex(playerTex) {}
-	void update(float deltaTime);
-	void render(float size);
-	void drawArmsA(LTexture& tex, crosshairA& c);
-	void updateInputs(bool wantsWalkR, bool wantsWalkL, bool wantsJump); //updates the player based on inputs
-	LTexture playerTex;
-	LTexture getTexture();
-};
-
-LTexture player::getTexture()
-{
-	return this->playerTex;
-}
-
-void player::update(float deltaTime) // updates player physics, should be called as many times as needed per second, use timestep if you want it consistent
-{
-	y += velPlayerY * deltaTime * 0.5f;  //add half before and half after, too lazy to explain why go watch a video on deltaTime
-	x += velPlayerX * deltaTime * 0.5f;
-	velPlayerX *= 0.97f; //air resistence
-	acelPlayerX *= 0.97f; acelPlayerY *= 0.97f; //air resistence but acceleration, this is not accurate but it does the job
-	velPlayerY += GRAVITY * deltaTime;
-	velPlayerX += acelPlayerX * deltaTime;
-	velPlayerY += acelPlayerY * deltaTime;
-	if (velPlayerY >= TERMINAL_VELOCITY) { velPlayerY = TERMINAL_VELOCITY; }
-	y += velPlayerY * deltaTime * 0.5f;
-	x += velPlayerX * deltaTime * 0.5f;
-}
-
-void player::render(float size) //FIXME: a function that just calls another function is kinda of retarded, really retarded actually but what can we do
-{
-	angryPlayerTex.render(x, y, size);
-}
-
-
-void player::updateInputs(bool wantsWalkR, bool wantsWalkL, bool wantsJump) //updates player based on inputs
-{
-	SDL_PumpEvents();
-	if (hasJumped == false && wantsJump == true)
-	{
-		velPlayerY -= 330;
-		hasJumped = true; //TODO: add some sort of delay in jumps, the character being able to bunny hop like a retard is just gay
-	}
-	if (wantsWalkR) { velPlayerX += 25; }
-	if (wantsWalkL) { velPlayerX -= 25; }
-}
-
-void player::drawArmsA(LTexture& tex, crosshairA& c)
-{
-	int rx = x + 16, ry = y + 22;//note arm pos x: x + 16, y = y + 22;
-	//FIX ME: this rect is just a place holder variable thingy
-	float dx = c.x - rx;
-	float dy = c.y - ry;
-	float ang = std::atan2(dy, dx);
-	float dgr = ang * 180.0f / M_PI;
-
-	SDL_Point pivot;
-	pivot.x = 20;
-	pivot.y = 4;
-
-	tex.renderEx(rx, ry, 1, dgr, pivot);
-}
-
 #pragma endregion
 
 #pragma region system stuff
@@ -352,6 +278,8 @@ bool loadMedia() //FIXME?: i think this is ok if i load in sprite sheets, otherw
 
 	return worked;
 }
+
+
 
 //closes window and frees stuff
 void close() //closes the game
@@ -392,16 +320,107 @@ bool calcFps(gameVars& game, int timeToUpdate) //calculates fps using deltaTime,
 	return false;
 }
 
-bool getInputs(SDL_KeyCode key)
+
+
+bool getInputsKB(SDL_Scancode key)
 {
-	const Uint8* keystates = SDL_GetKeyboardState(NULL);
+	const Uint8* keystates = SDL_GetKeyboardState(nullptr);
 	return keystates[key];
 }
 
 #pragma endregion
 
+#pragma region player stuff
+class player {
+public:
+	float x, y; //final position of player, used to render, will be lerped
+	float velPlayerX = 0;   float velPlayerY = 0; // velocity, how much should the player move essentially
+	float acelPlayerX = 0;  float acelPlayerY = 0; //acceleration, different from velocity cuz pysichs, gets added to velocity
+	bool hasJumped = true;
 
-void updatePhysicsGame(player& p, collider& c) //in theory we could just use this function with a loop in all objects that need coliding
+	float prePlayerPosX; float prePlayerPosY; // used in interpolation, probably deprecated
+
+	player(float startX, float startY, LTexture& playerTex)
+		: x(startX), y(startY), playerTex(playerTex) {}
+	void update(float deltaTime);
+	void render(float size);
+	void drawArmsA(LTexture& tex, crosshairA& c);
+	void updateInputs(); //updates the player based on inputs
+	LTexture playerTex;
+	LTexture getTexture();
+};
+
+LTexture player::getTexture()
+{
+	return this->playerTex;
+}
+
+void player::update(float deltaTime) // updates player physics, should be called as many times as needed per second, use timestep if you want it consistent
+{
+	y += velPlayerY * deltaTime * 0.5f;  //add half before and half after, too lazy to explain why go watch a video on deltaTime
+	x += velPlayerX * deltaTime * 0.5f;
+	velPlayerX *= 0.97f; //air resistence
+	acelPlayerX *= 0.97f; acelPlayerY *= 0.97f; //air resistence but acceleration, this is not accurate but it does the job
+	velPlayerY += GRAVITY * deltaTime;
+	velPlayerX += acelPlayerX * deltaTime;
+	velPlayerY += acelPlayerY * deltaTime;
+	if (velPlayerY >= TERMINAL_VELOCITY) { velPlayerY = TERMINAL_VELOCITY; }
+	y += velPlayerY * deltaTime * 0.5f;
+	x += velPlayerX * deltaTime * 0.5f;
+}
+
+
+
+void player::render(float size) //FIXME: a function that just calls another function is kinda of retarded, really retarded actually but what can we do
+{
+	angryPlayerTex.render(x, y, size);
+}
+
+
+void player::updateInputs() //updates player based on inputs
+{
+		//printf("is trying to jump?%d\n",  getInputsKB(SDL_SCANCODE_W));
+		SDL_PumpEvents();
+		//printf("ok");
+		bool wantsWalkR = false;
+		bool wantsWalkL = false;
+		bool wantsJump = false;
+		if (getInputsKB(SDL_SCANCODE_D)) { wantsWalkR = true; }
+		if (getInputsKB(SDL_SCANCODE_A)) { wantsWalkL = true; }
+		if (getInputsKB(SDL_SCANCODE_W)) { wantsJump = true; }
+		if (hasJumped == false && wantsJump == true)
+		{
+			velPlayerY -= 330;
+			hasJumped = true; //TODO: add some sort of delay in jumps, the character being able to bunny hop like a retard is just gay
+		}
+		if (wantsWalkR) { velPlayerX += 25; }
+		if (wantsWalkL) { velPlayerX -= 25; }
+		SDL_Delay(16);
+}
+
+void player::drawArmsA(LTexture& tex, crosshairA& c)
+{
+	int rx = x + 16, ry = y + 22;//note arm pos x: x + 16, y = y + 22;
+	//FIX ME: this rect is just a place holder variable thingy
+	float dx = c.x - rx;
+	float dy = c.y - ry;
+	float ang = std::atan2(dy, dx);
+	float dgr = ang * 180.0f / M_PI;
+
+	SDL_Point pivot;
+	pivot.x = 20;
+	pivot.y = 4;
+
+	tex.renderEx(rx, ry, 1, dgr, pivot);
+}
+
+//all this functions are pretty retarded, but because they work, we are letting then stay here and never touching then again
+
+
+#pragma endregion
+
+
+void checkCollision(player& p, collider& c) //in theory we could just use this function with a loop in all objects that need coliding
 {
 	//we will be using AABB, its not elegant, please do not put too many colliders, i do not like O(n^2)
 	if (p.x < c.x + c.w && p.x + p.playerTex.getWidth() > c.x && p.y < c.y + c.h && p.y + p.playerTex.getHeight() > c.y)
@@ -419,10 +438,8 @@ void updatePhysicsGame(player& p, collider& c) //in theory we could just use thi
 		float overlapX = std::min(aRight, bRight) - std::max(aLeft, bLeft);
 		float overlapY = std::min(aBottom, bBottom) - std::max(aTop, bTop);
 		
-		if (fabs(overlapX) < fabs(overlapY)) { p.x -= overlapX; p.velPlayerX = 0; }
-		else { p.y -= overlapY; p.velPlayerY *= 0.1f; p.hasJumped = false; }
-
-
+		if (fabs(overlapX) < fabs(overlapY)) { if (p.velPlayerX > 0) {p.x -= overlapX;} else {p.x+=overlapX;} p.velPlayerX = 0; }
+		else { if(p.velPlayerY > 0){p.y -= overlapY;} else {p.y += overlapY;} p.velPlayerY *= 0.1f; p.hasJumped = false; }
 	}
 
 }
@@ -432,14 +449,18 @@ void gameLoop()
 	bool quitted = false; //check if the game is running
 	SDL_Event e; //event thingy
 	SDL_SetRenderDrawBlendMode(gRenderer, SDL_BLENDMODE_BLEND); //makes so transparency works
-	player angryPlayer(400, 100, angryPlayerTex); //this essentially spawns the player, i wonder if texture and player should be one thing
+	player angryPlayer(400, 370, angryPlayerTex); //this essentially spawns the player, i wonder if texture and player should be one thing
 	std::vector<collider> colliders = 
 	{
 		collider(200, 400, 50, 800),
 		collider(600, 200, 50, 800),
 		collider(SCREEN_HEIGHT / 2, SCREEN_WIDTH / 2, 400, 100),
-		collider(200, 0, 50, 700)
+		collider(200, 0, 50, 700),
+		collider(200, 350, 700, 20)
 	};
+
+
+	
 
 	crosshairA crosshairA;
 	int secondsPassed = 0;
@@ -448,6 +469,8 @@ void gameLoop()
 	bool wantsWalkL = false;
 	int mouseX, mouseY;
 	game.lastTick = SDL_GetTicks();
+	SDL_ShowCursor(SDL_DISABLE);
+	SDL_SetWindowGrab(gWindow, SDL_TRUE);
 
 	while (!quitted) //while its running, do stuff
 	{
@@ -460,6 +483,9 @@ void gameLoop()
 			}
 
 			}
+		
+		//SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+		//SDL_PumpEvents();
 
 		SDL_SetRenderDrawColor(gRenderer, 0, 0, 0, 0); SDL_RenderClear(gRenderer); // clear screen so we can start again
 		calcDeltaTime(game); // calculate deltaTime duh, 
@@ -477,30 +503,29 @@ void gameLoop()
 			game.frameSincePhysicsCheck -= FIXED_UPDATE_TIME; //reset
 		}
 
-		if (calcFps(game, 15)) { printf("\nfps: %.0f\n", game.fps); printf("dt: %f\n", game.deltaTime); printf("y: %.0f\n", 1.0f); printf("vel: %.0f\n", angryPlayer.velPlayerY); secondsPassed++; printf("seconds: %d\n", secondsPassed); };
+		if (calcFps(game, 60)) { printf("\nfps: %.0f\n", game.fps); printf("dt: %f\n", game.deltaTime); printf("y: %.0f\n", 1.0f); printf("vel: %.0f\n", angryPlayer.velPlayerY); secondsPassed++; printf("seconds: %d\n", secondsPassed); };
 
 		for (collider c : colliders)
 		{
 			c.draw(c.x, c.y, c.w, c.h, 1);
-			updatePhysicsGame(angryPlayer, c);
+			checkCollision(angryPlayer, c);
 		}
 
 		SDL_GetMouseState(&mouseX, &mouseY);
 		crosshairA.draw(mouseX, mouseY);
-
 		angryPlayer.render(1); //renders player with size 1
 		angryPlayer.drawArmsA(shotgunTex, crosshairA);
-		angryPlayer.updateInputs(wantsWalkR, wantsWalkL, wantsJump);
-
+		angryPlayer.updateInputs();
 		SDL_RenderPresent(gRenderer); //do all of that stuff
 
 	}
+	running = false;
 }
 
 
 int main(int argc, char* args[])
 {
-
+	
 
 	if (!init()) //start the game
 	{
@@ -520,6 +545,7 @@ int main(int argc, char* args[])
 		}
 
 		gameLoop();
+		
 		close();
 
 		return 0;

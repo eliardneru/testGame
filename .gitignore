@@ -1,62 +1,21 @@
-# Prerequisites
-*.d
+# CMake build files
+/build/
+/CMakeFiles/
+/CMakeCache.txt
+cmake_install.cmake
 
-# Compiled Object files
-*.slo
-*.lo
+# Compile commands
+compile_commands.json
+
+# Executables and object files
+*.exe
 *.o
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
 *.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# uhh, visual studio?
-.vs/
-*.user
-*.suo
-
-# Build results
-bin/
-obj/
-[Bb]uild/
-[Ll]og/
-*.log
-
-# NuGet
-*.nupkg
-*.snupkg
-packages/
-*.nuspec
-
-# Others
-*.DS_Store
-*.class
-*.pyc
 *.pdb
-*.cache
-*.tmp
+*.ilk
+*.idb
 
-# Rider
-.idea/
-
+# Sublime project/session files
+*.sublime-project
+*.sublime-workspace	
