@@ -10,6 +10,10 @@
 #include <atomic>
 std::atomic<bool> running(true);
 
+
+//hADSUASODASJDA IOFUCK YOU
+
+
 //global constants 
 const int SCREEN_WIDTH = 1024; //screen dimension constants, using this one because its divisible by 8 or something, plus its not that big
 const int SCREEN_HEIGHT = 576;
@@ -63,7 +67,7 @@ bool init()
 		{
 			gRenderer = SDL_CreateRenderer(gWindow, -1, SDL_RENDERER_ACCELERATED); //-1 just means 'choose whatever'
 			if (gRenderer == NULL) //same thing
-			{
+			{ 
 				printf("renderer could not be created! SDL error: %s\n", SDL_GetError());
 				worked = false;
 			}
@@ -82,7 +86,7 @@ bool init()
 }
 
 //stupid gay thing we need for textures
-#pragma region Texture Class
+#pragma Texture Class{
 class LTexture
 {
 public:
@@ -212,12 +216,12 @@ int LTexture::getHeight()
 	return mHeight;
 }
 
-#pragma endregion
+#pragma endregion }
 
 LTexture angryPlayerTex; //it would be good to load it before anything else so its public, honestly this is so fucking retarded its not funny
 LTexture shotgunTex;
 
-#pragma region crosshair
+#pragma region crosshair {
 
 class crosshairA
 {
@@ -236,9 +240,9 @@ void crosshairA::draw(Uint32 mosx, Uint32 mosy)
 	SDL_RenderFillRect(gRenderer, &r);
 }
 
-#pragma endregion
+#pragma endregion }
 
-#pragma region collider stuff
+#pragma region collider stuff {
 class collider
 {
 public:
@@ -259,9 +263,9 @@ void collider::draw(float& x, float& y, float& w, float& h, int isVisible)
 	SDL_SetRenderDrawColor(gRenderer, 211, 211, 211, v);
 	SDL_RenderFillRect(gRenderer, &col);
 }
-#pragma endregion
+#pragma endregion }
 
-#pragma region system stuff
+#pragma region system stuff {
 bool loadMedia() //FIXME?: i think this is ok if i load in sprite sheets, otherwise it will suck ass 
 {
 	bool worked = true;
@@ -328,9 +332,9 @@ bool getInputsKB(SDL_Scancode key)
 	return keystates[key];
 }
 
-#pragma endregion
+#pragma endregion }
 
-#pragma region player stuff
+#pragma region player stuff {
 class player {
 public:
 	float x, y; //final position of player, used to render, will be lerped
@@ -417,7 +421,7 @@ void player::drawArmsA(LTexture& tex, crosshairA& c)
 //all this functions are pretty retarded, but because they work, we are letting then stay here and never touching then again
 
 
-#pragma endregion
+#pragma endregion }
 
 
 void checkCollision(player& p, collider& c) //in theory we could just use this function with a loop in all objects that need coliding
